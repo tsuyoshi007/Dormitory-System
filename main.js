@@ -130,7 +130,7 @@ async function initializeDB () {
 }
 
 async function check () {
-  let CUR_ROW = await getCurrentData({}).catch(err => {
+  let CUR_ROW = await getCurrentData({ name: { $exists: true } }).catch(err => {
     console.log('An error occured:', err);
   });
 
@@ -168,7 +168,7 @@ async function check () {
     if (memberRemoved.length) {
       memberRemoved.forEach(name => {
         removeDB(name).then(msg => {
-          console.log(msg);
+          console.log(msg,"was removed.");
         }).catch(err => {
           console.log('An error occured:', err);
         });
@@ -176,7 +176,7 @@ async function check () {
     }
 
     // Check for moved member
-    const memberDetail = currentMemberName.map(name => {
+    const memberDetail = currentMemberName.diff(memberRemoved).map(name => {
       return [CUR_ROW.filter(member => {
         return member.name === name;
       })[0],
@@ -224,7 +224,7 @@ async function start () {
   }
 }
 
-const job = new CronJob('* */1 * * * *', function () {
+const job = new CronJob('0 */1 * * * *', function () {
   check();
 });
 
