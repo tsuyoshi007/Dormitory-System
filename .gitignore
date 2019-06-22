@@ -89,3 +89,5 @@ typings/
 .env.production.local
 
 doc
+
+googlespreadsheet-6e0eacfc71c8.json
