@@ -228,7 +228,7 @@ async function start () {
   }
 }
 
-const job = new CronJob('*/5 * * * * *', function () {
+const job = new CronJob('0 */1 * * * *', function () {
   check();
 });
 
