@@ -4,18 +4,18 @@ require('dotenv').config();
 
 let GoogleSpreadsheet = require('google-spreadsheet');
 
-//nedb
+// nedb
 const DataStore = require('nedb');
 const db = new DataStore({ filename: './dataBase/member_list.db', autoload: true });
 
-//cron
+// cron
 const CronJob = require('cron').CronJob;
 
-//expressjs
+// expressjs
 const express = require('express');
 const app = express();
 
-//slack web api
+// slack web api
 const { WebClient } = require('@slack/web-api');
 const token = process.env.SLACK_TOKEN;
 const web = new WebClient(token);
@@ -63,7 +63,10 @@ function getRows () {
   });
 }
 
-function RowDB (name, id, type, room, lastEdited) {
+function RowDB (name, id, dorm, lastEdited) {
+  const splited = dorm.split(' ');
+  const type = splited[0];
+  const room = splited[1];
   this.name = name;
   this.id = id;
   this.type = type;
@@ -72,12 +75,13 @@ function RowDB (name, id, type, room, lastEdited) {
 }
 
 function getNeccessaryData (rows) {
+  rows = rows.filter(row => {
+    return row.name !== '' && row.id !== '' && row.dorm !== '';
+  });
   let ROWS = rows.map(row => {
-    return new RowDB(row.name, row.id, row.type, row.room, row['app:edited']);
+    return new RowDB(row.name, row.id, row.dorm, row['app:edited']);
   });
-  return ROWS.filter(row => {
-    return row.name !== '' && row.id !== '' && row.type !== '' && row.room !== '';
-  });
+  return ROWS
 }
 
 function getCurrentData (query) {
@@ -168,7 +172,7 @@ async function check () {
     if (memberRemoved.length) {
       memberRemoved.forEach(name => {
         removeDB(name).then(msg => {
-          console.log(msg,"was removed.");
+          console.log(msg, 'was removed.');
         }).catch(err => {
           console.log('An error occured:', err);
         });
@@ -180,33 +184,32 @@ async function check () {
       return [CUR_ROW.filter(member => {
         return member.name === name;
       })[0],
-      REQ_ROW.filter(member => {
+      getNeccessaryData(REQ_ROW).filter(member => {
         return member.name === name;
       })[0]];
     });
     memberDetail.forEach(member => {
-      if (member[0].type !== member[1].type||member[0].room !== member[1].room) {
+      if (member[0].type !== member[1].type || member[0].room !== member[1].room) {
         (async () => {
           await web.chat.postMessage({
-            username: "Dormitory Bot",
-            icon_emoji:":truck:",
+            username: 'Dormitory Bot',
+            icon_emoji: ':truck:',
             text: `${member[0].name} was moved from Type: ${member[0].type} Room: ${member[0].room} to Type: ${member[1].type} Room: ${member[1].room}`,
-            channel: "#general",
+            channel: '#random'
           });
         })();
-        if(member[0].type !== member[1].type){
-          db.update({name:member[0].name},{$set:{type:member[1].type}},function(err){
-            if(err) {
-              console.log('An error occured:', err);
-            }
-          });
-        }else{
-          db.update({name:member[0].name},{$set:{room:member[1].room}},function(err){
-            if(err) {
-              console.log('An error occured:', err);
-            }
-          });
-      }
+
+        db.update({ name: member[0].name }, { $set: { type: member[1].type } }, function (err) {
+          if (err) {
+            console.log('An error occured:', err);
+          }
+        });
+
+        db.update({ name: member[0].name }, { $set: { room: member[1].room } }, function (err) {
+          if (err) {
+            console.log('An error occured:', err);
+          }
+        });
       }
     });
   }
@@ -224,20 +227,20 @@ async function start () {
   }
 }
 
-const job = new CronJob('0 */1 * * * *', function () {
+const job = new CronJob('*/5 * * * * *', function () {
   check();
 });
 
 start();
 
-app.get('/',async (req, res) => {
-  res.send(await getCurrentData({}).catch(err=>{
-    res.end("An error occured:",err)
+app.get('/', async (req, res) => {
+  res.send(await getCurrentData({}).catch(err => {
+    res.end('An error occured:', err);
   }));
 });
 
-app.get('/:target',async (req, res) => {
-  res.send(await getCurrentData({id:req.params.target}));
+app.get('/:target', async (req, res) => {
+  res.send(await getCurrentData({ id: req.params.target }));
 });
 
 app.listen(process.env.PORT);
