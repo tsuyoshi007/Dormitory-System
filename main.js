@@ -63,7 +63,7 @@ function getRows () {
   });
 }
 
-function RowDB (name, id, dorm, lastEdited) {
+function RowDB (name, id, dorm,email, lastEdited) {
   const splited = dorm.split(' ');
   const type = splited[0];
   const room = splited[1];
@@ -71,15 +71,16 @@ function RowDB (name, id, dorm, lastEdited) {
   this.id = id;
   this.type = type;
   this.room = room;
+  this.email = email;
   this.lastEdited = lastEdited;
 }
 
 function getNeccessaryData (rows) {
   rows = rows.filter(row => {
-    return row.name !== '' && row.id !== '' && row.dorm !== '';
+    return row.name !== '' && row.id !== '' && row.dorm !== '' && row.email !== '';
   });
   let ROWS = rows.map(row => {
-    return new RowDB(row.name, row.id, row.dorm, row['app:edited']);
+    return new RowDB(row.name, row.id, row.dorm,row.email, row['app:edited']);
   });
   return ROWS
 }
@@ -108,13 +109,13 @@ function insertDB (data) {
   });
 }
 
-function removeDB (name) {
+function removeDB (id) {
   return new Promise(function (resolve, reject) {
-    db.remove({ name: name }, (err) => {
+    db.remove({ id: id }, (err) => {
       if (err) {
         reject(err);
       } else {
-        resolve(name, ' was removed.');
+        resolve(id, ' was removed.');
       }
     });
   });
@@ -134,7 +135,7 @@ async function initializeDB () {
 }
 
 async function check () {
-  let CUR_ROW = await getCurrentData({ name: { $exists: true } }).catch(err => {
+  let CUR_ROW = await getCurrentData({ id: { $exists: true } }).catch(err => {
     console.log('An error occured:', err);
   });
 
@@ -144,20 +145,20 @@ async function check () {
 
   if (CUR_ROW[0].lastEdited !== REQ_ROW[0]['app:edited']) {
     // Check for new member
-    const currentMemberName = CUR_ROW.map(member => {
-      return member.name;
+    const currentMemberID = CUR_ROW.map(member => {
+      return member.id;
     });
-    const reqMemberName = REQ_ROW.map(member => {
-      return member.name;
+    const reqMemberID = REQ_ROW.map(member => {
+      return member.id;
     });
 
-    const memberAdded = reqMemberName.diff(currentMemberName);
-    const memberRemoved = currentMemberName.diff(reqMemberName);
+    const memberAdded = reqMemberID.diff(currentMemberID);
+    const memberRemoved = currentMemberID.diff(reqMemberID);
 
     if (memberAdded.length) {
-      const memberToAdd = memberAdded.map(name => {
+      const memberToAdd = memberAdded.map(id => {
         return REQ_ROW.filter(member => {
-          return member.name === name;
+          return member.id === id;
         })[0];
       });
       const newMember = getNeccessaryData(memberToAdd);
@@ -170,8 +171,8 @@ async function check () {
       }
     }
     if (memberRemoved.length) {
-      memberRemoved.forEach(name => {
-        removeDB(name).then(msg => {
+      memberRemoved.forEach(id => {
+        removeDB(id).then(msg => {
           console.log(msg, 'was removed.');
         }).catch(err => {
           console.log('An error occured:', err);
@@ -180,12 +181,12 @@ async function check () {
     }
 
     // Check for moved member
-    const memberDetail = currentMemberName.diff(memberRemoved).map(name => {
+    const memberDetail = currentMemberID.diff(memberRemoved).map(id => {
       return [CUR_ROW.filter(member => {
-        return member.name === name;
+        return member.id === id;
       })[0],
       getNeccessaryData(REQ_ROW).filter(member => {
-        return member.name === name;
+        return member.id === id;
       })[0]];
     });
     memberDetail.forEach(member => {
@@ -199,13 +200,13 @@ async function check () {
           });
         })();
 
-        db.update({ name: member[0].name }, { $set: { type: member[1].type } }, function (err) {
+        db.update({ id: member[0].id }, { $set: { type: member[1].type } }, function (err) {
           if (err) {
             console.log('An error occured:', err);
           }
         });
 
-        db.update({ name: member[0].name }, { $set: { room: member[1].room } }, function (err) {
+        db.update({ id: member[0].id }, { $set: { room: member[1].room } }, function (err) {
           if (err) {
             console.log('An error occured:', err);
           }
